@@ -4,56 +4,43 @@ export type Operator = "AND" | "OR";
 export type QueryValue = string | null | boolean | number;
 export type QueryType = Record<string, QueryValue | QueryValue[]>;
 
-// Helper to check if pattern is valid (returns true/false)
-export type IsValidPattern<T extends readonly unknown[]> = 
-  T extends readonly [infer First, ...infer Rest]
-    ? First extends QueryType
-      ? Rest extends readonly []
-        ? true // Single QueryType is valid
-        : Rest extends readonly [infer Op, infer Next, ...infer After]
-          ? Op extends Operator
-            ? Next extends QueryType
-              ? IsValidPattern<readonly [Next, ...After]>
-              : false // After operator must be QueryType
-            : false // After QueryType must be Operator
-          : false // If Rest has length 1, pattern is invalid
-      : false // Must start with QueryType
-    : false; // Empty array not allowed
+// Helper to check if pattern is valid (returns "valid" or error message)
+export type ValidatePatternWithError<T extends readonly unknown[]> = 
+  T extends readonly []
+    ? "ERROR: Query cannot be empty. Expected: [QueryType] or [QueryType, Operator, QueryType, ...]"
+    : T extends readonly [infer First, ...infer Rest]
+      ? First extends QueryType
+        ? Rest extends readonly []
+          ? "valid" // Single QueryType is valid
+          : Rest extends readonly [infer Op, ...infer After]
+            ? Op extends Operator
+              ? After extends readonly []
+                ? "ERROR: Query cannot end with an Operator. Expected a QueryType after the Operator."
+                : After extends readonly [infer Next, ...infer RestAfter]
+                  ? Next extends QueryType
+                    ? ValidatePatternWithError<readonly [Next, ...RestAfter]>
+                    : "ERROR: After an Operator, expected a QueryType but found something else. Pattern must be: QueryType, Operator, QueryType, ..."
+                  : "ERROR: Invalid pattern structure. Expected: QueryType, Operator, QueryType, ..."
+              : "ERROR: After a QueryType, expected an Operator ('AND' | 'OR') but found something else."
+            : "ERROR: Invalid pattern structure. After QueryType, expected an Operator followed by another QueryType."
+        : First extends Operator
+          ? "ERROR: Query cannot start with an Operator. It must start with a QueryType."
+          : "ERROR: Query must start with a QueryType (Record<string, value>)."
+      : "ERROR: Invalid query pattern.";
 
-// Validate pattern and return T if valid, never if invalid
+// Validate pattern and return T if valid, error message if invalid
 export type ValidatePattern<T extends readonly unknown[]> = 
-  IsValidPattern<T> extends true ? T : never;
+  ValidatePatternWithError<T> extends "valid" ? T : ValidatePatternWithError<T>;
 
 // Main type alias
 export type QueryChain<T extends readonly unknown[] = readonly unknown[]> = ValidatePattern<T>;
 
-// Approach 2: Runtime validation with type guard
-type QueryPattern = readonly (QueryType | Operator)[];
-
-function isValidQueryChain(arr: QueryPattern): arr is QueryChain {
-  if (arr.length === 0) return false;
-  if (arr.length % 2 === 0) return false; // Must be odd length (Q, OP, Q, OP, Q)
-  
-  for (let i = 0; i < arr.length; i++) {
-    if (i % 2 === 0) {
-      // Even indices should be QueryType (objects)
-      const item = arr[i];
-      if (typeof item !== "object" || item === null || Array.isArray(item)) {
-        return false;
-      }
-      // Check if it's a valid QueryType (has string keys)
-      if (Object.keys(item).length === 0) {
-        return false;
-      }
-    } else {
-      // Odd indices should be Operator
-      if (arr[i] !== "AND" && arr[i] !== "OR") {
-        return false;
-      }
-    }
-  }
-  
-  return true;
+// Function using const type parameters (TypeScript 5.0+)
+// No 'as const' needed when passing arrays inline!
+export function processQuery<const T extends readonly unknown[]>(
+  query: T & ValidatePattern<T>
+): T {
+  return query;
 }
 
 // Approach 3: Builder pattern for type-safe construction
@@ -114,11 +101,28 @@ console.log("Valid query 1:", validQuery1);
 console.log("Valid query 2:", validQuery2);
 console.log("Valid query 3:", validQuery3);
 console.log("Valid query 4:", validQuery4);
-console.log("Is valid pattern?", isValidQueryChain(validQuery3));
 
 // Using the builder pattern
 const builtQuery = createQuery({ name: "John" }).build();
 console.log("Built query:", builtQuery);
+
+console.log("\n=== Examples using const type parameter (no 'as const' needed!) ===");
+
+// These work without 'as const' thanks to the const type parameter!
+const result1 = processQuery([{ name: "Alice" }]);
+console.log("Result 1:", result1);
+
+const result2 = processQuery([{ name: "Bob" }, "AND", { age: 25 }]);
+console.log("Result 2:", result2);
+
+const result3 = processQuery([
+  { name: "Charlie" },
+  "AND",
+  { age: 35 },
+  "OR",
+  { active: true }
+]);
+console.log("Result 3:", result3);
 
 // ============================================
 // NEGATIVE TEST CASES - These SHOULD cause type errors
