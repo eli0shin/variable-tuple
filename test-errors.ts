@@ -121,4 +121,17 @@ processQuery([{ name: "John" }]);
 processQuery([{ name: "John" }, "AND", { age: 30 }]);
 processQuery([{ name: "John" }, "AND", { age: 30 }, "OR", { status: true }]);
 
-console.log("✓ All valid queries processed successfully!");
+// Nested queries also work!
+processQuery([
+  [{ name: "John" }, "OR", { name: "Jane" }],
+  "AND",
+  { age: 30 }
+]);
+
+processQuery([
+  { status: "active" },
+  "AND",
+  [{ age: 25 }, "OR", { experience: 5 }]
+]);
+
+console.log("✓ All valid queries (including nested) processed successfully!");

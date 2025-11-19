@@ -4,11 +4,13 @@ TypeScript implementation of variable-length tuples with consistent patterns usi
 
 ## Overview
 
-This project demonstrates a type-safe tuple pattern that alternates between `QueryType` and `Operator`:
-- Pattern: `[QueryType]` or `[QueryType, Operator, QueryType, Operator, QueryType, ...]`
-- `QueryType`: `Record<string, string | null | boolean | number | Array<...>>`
+This project demonstrates a type-safe tuple pattern that alternates between `Query` and `Operator`:
+- Pattern: `[Query]` or `[Query, Operator, Query, Operator, Query, ...]`
+- `BaseQueryType`: `Record<string, string | null | boolean | number | Array<...>>`
+- `Query`: Either a `BaseQueryType` OR a nested `QueryChain` (recursive composition!)
 - `Operator`: `"AND" | "OR"` (string literal type)
 - **No hardcoded length limits** - uses recursive type validation with `infer` and mapped types
+- **Supports recursive nesting** - any `Query` position can contain a nested `QueryChain`
 
 ## Implementation
 
@@ -41,6 +43,43 @@ processQuery([{ name: "Charlie" }, "AND", { age: 35 }, "OR", { active: true }]);
 The `const` type parameter automatically infers literal tuple types, making the API more ergonomic while maintaining full type safety.
 
 **Why `const` type parameters?** Without them (or `as const`), TypeScript widens array literals to union types like `(string | object)[]`. The `const` type parameter is the **only** way to prevent this widening at the call site. Alternatives like `infer`, `NoInfer`, or constraint tricks don't work because type inference happens before constraint checking. See `test-inference-patterns.ts` for detailed comparisons.
+
+### Recursive Nesting Support
+
+Any position expecting a `Query` can be a **nested `QueryChain`**, enabling complex compositions:
+
+```typescript
+import { processQuery } from "./index";
+
+// Simple nesting
+processQuery([
+  [{ name: "John" }, "OR", { name: "Jane" }],  // Nested QueryChain
+  "AND",
+  { age: 30 }
+]);
+
+// Deep nesting
+processQuery([
+  { status: "active" },
+  "AND",
+  [
+    { name: "John" },
+    "OR",
+    [{ age: 30 }, "AND", { role: "admin" }]  // Multiple levels
+  ]
+]);
+
+// Complex composition
+processQuery([
+  [{ country: "USA" }, "OR", { country: "Canada" }],
+  "AND",
+  [{ age: 25 }, "OR", { experience: 5 }],
+  "AND",
+  { active: true }
+]);
+```
+
+Nested queries are validated recursively - invalid nested structures produce clear error messages.
 
 ## Installation
 

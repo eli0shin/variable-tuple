@@ -2,38 +2,52 @@
 export type Operator = "AND" | "OR";
 
 export type QueryValue = string | null | boolean | number;
-export type QueryType = Record<string, QueryValue | QueryValue[]>;
+export type BaseQueryType = Record<string, QueryValue | QueryValue[]>;
+
+// Forward declaration for recursive type
+export type QueryChain<T extends readonly unknown[] = readonly unknown[]> = ValidatePattern<T>;
+
+// A Query can be either a BaseQueryType or a nested QueryChain
+export type Query = BaseQueryType | QueryChain;
+
+// Helper to check if something is a valid query (base type or valid nested chain)
+type IsValidQuery<T> = 
+  T extends BaseQueryType
+    ? true
+    : T extends readonly unknown[]
+      ? ValidatePatternWithError<T> extends "valid"
+        ? true
+        : false
+      : false;
 
 // Helper to check if pattern is valid (returns "valid" or error message)
+// Now supports recursive nesting - any QueryType position can be a nested QueryChain
 export type ValidatePatternWithError<T extends readonly unknown[]> = 
   T extends readonly []
-    ? "ERROR: Query cannot be empty. Expected: [QueryType] or [QueryType, Operator, QueryType, ...]"
+    ? "ERROR: Query cannot be empty. Expected: [Query] or [Query, Operator, Query, ...]"
     : T extends readonly [infer First, ...infer Rest]
-      ? First extends QueryType
+      ? IsValidQuery<First> extends true
         ? Rest extends readonly []
-          ? "valid" // Single QueryType is valid
+          ? "valid" // Single Query is valid
           : Rest extends readonly [infer Op, ...infer After]
             ? Op extends Operator
               ? After extends readonly []
-                ? "ERROR: Query cannot end with an Operator. Expected a QueryType after the Operator."
+                ? "ERROR: Query cannot end with an Operator. Expected a Query after the Operator."
                 : After extends readonly [infer Next, ...infer RestAfter]
-                  ? Next extends QueryType
+                  ? IsValidQuery<Next> extends true
                     ? ValidatePatternWithError<readonly [Next, ...RestAfter]>
-                    : "ERROR: After an Operator, expected a QueryType but found something else. Pattern must be: QueryType, Operator, QueryType, ..."
-                  : "ERROR: Invalid pattern structure. Expected: QueryType, Operator, QueryType, ..."
-              : "ERROR: After a QueryType, expected an Operator ('AND' | 'OR') but found something else."
-            : "ERROR: Invalid pattern structure. After QueryType, expected an Operator followed by another QueryType."
+                    : "ERROR: After an Operator, expected a Query (BaseQueryType or nested QueryChain) but found something else."
+                  : "ERROR: Invalid pattern structure. Expected: Query, Operator, Query, ..."
+              : "ERROR: After a Query, expected an Operator ('AND' | 'OR') but found something else."
+            : "ERROR: Invalid pattern structure. After Query, expected an Operator followed by another Query."
         : First extends Operator
-          ? "ERROR: Query cannot start with an Operator. It must start with a QueryType."
-          : "ERROR: Query must start with a QueryType (Record<string, value>)."
+          ? "ERROR: Query cannot start with an Operator. It must start with a Query."
+          : "ERROR: Query must start with a Query (BaseQueryType or nested QueryChain)."
       : "ERROR: Invalid query pattern.";
 
 // Validate pattern and return T if valid, error message if invalid
 export type ValidatePattern<T extends readonly unknown[]> = 
   ValidatePatternWithError<T> extends "valid" ? T : ValidatePatternWithError<T>;
-
-// Main type alias
-export type QueryChain<T extends readonly unknown[] = readonly unknown[]> = ValidatePattern<T>;
 
 // Function using const type parameters (TypeScript 5.0+)
 // No 'as const' needed when passing arrays inline!
@@ -43,23 +57,23 @@ export function processQuery<const T extends readonly unknown[]>(
   return query;
 }
 
-// Approach 3: Builder pattern for type-safe construction
+// Builder pattern for type-safe construction (supports nesting)
 type QueryBuilder<T extends readonly unknown[] = []> = {
   build: () => ValidatePattern<T>;
-  and: <Q extends QueryType>(query: Q) => QueryBuilder<readonly [...T, "AND", Q]>;
-  or: <Q extends QueryType>(query: Q) => QueryBuilder<readonly [...T, "OR", Q]>;
+  and: <Q extends Query>(query: Q) => QueryBuilder<readonly [...T, "AND", Q]>;
+  or: <Q extends Query>(query: Q) => QueryBuilder<readonly [...T, "OR", Q]>;
 };
 
-function createQuery<Q extends QueryType>(initialQuery: Q): QueryBuilder<readonly [Q]> {
+function createQuery<Q extends Query>(initialQuery: Q): QueryBuilder<readonly [Q]> {
   const queries: unknown[] = [initialQuery];
   
   const builder: any = {
     build: () => [...queries],
-    and: (query: QueryType) => {
+    and: (query: Query) => {
       queries.push("AND", query);
       return builder;
     },
-    or: (query: QueryType) => {
+    or: (query: Query) => {
       queries.push("OR", query);
       return builder;
     },
@@ -123,6 +137,46 @@ const result3 = processQuery([
   { active: true }
 ]);
 console.log("Result 3:", result3);
+
+console.log("\n=== Nested QueryChain examples (recursive composition!) ===");
+
+// Simple nesting - a nested query in place of a base query
+const nested1 = processQuery([
+  [{ name: "John" }, "OR", { name: "Jane" }],  // Nested QueryChain
+  "AND",
+  { age: 30 }
+]);
+console.log("Nested 1:", nested1);
+
+// Multiple levels of nesting
+const nested2 = processQuery([
+  { status: "active" },
+  "AND",
+  [
+    { name: "John" },
+    "OR",
+    [{ age: 30 }, "AND", { role: "admin" }]  // Deeply nested
+  ]
+]);
+console.log("Nested 2:", nested2);
+
+// Complex nested structure
+const nested3 = processQuery([
+  [
+    { country: "USA" },
+    "OR",
+    { country: "Canada" }
+  ],
+  "AND",
+  [
+    { age: 25 },
+    "OR",
+    { experience: 5 }
+  ],
+  "AND",
+  { active: true }
+]);
+console.log("Nested 3:", nested3);
 
 // ============================================
 // NEGATIVE TEST CASES - These SHOULD cause type errors
