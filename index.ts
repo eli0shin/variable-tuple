@@ -2,7 +2,7 @@
 export type Operator = "AND" | "OR";
 
 export type QueryValue = string | null | boolean | number;
-export type BaseQueryType = Record<string, QueryValue | QueryValue[]>;
+export type BaseQueryType = Record<string, QueryValue | QueryValue[] | readonly QueryValue[]>;
 
 // Forward declaration for recursive type
 export type QueryChain<T extends readonly unknown[] = readonly unknown[]> = ValidatePattern<T>;
@@ -21,7 +21,7 @@ type IsValidQuery<T> =
       : false;
 
 // Helper to check if pattern is valid (returns "valid" or error message)
-// Now supports recursive nesting - any QueryType position can be a nested QueryChain
+// Now supports recursive nesting - any Query position can be a nested QueryChain
 export type ValidatePatternWithError<T extends readonly unknown[]> = 
   T extends readonly []
     ? "ERROR: Query cannot be empty. Expected: [Query] or [Query, Operator, Query, ...]"
