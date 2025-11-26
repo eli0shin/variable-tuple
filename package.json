@@ -5,7 +5,7 @@
   "scripts": {
     "test": "vitest run",
     "test:types": "vitest --typecheck",
-    "typecheck": "tsc --noEmit",
+    "type:check": "tsc --noEmit",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "husky"

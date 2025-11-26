@@ -1,5 +1,5 @@
 import { test, expectTypeOf } from 'vitest';
-import { query, compileQuery } from './index';
+import { query, compileDatadogQuery } from './index';
 import type {
   ValidatePattern,
   ValidatePatternWithError,
@@ -219,40 +219,46 @@ test('invalid operator returns correct error message', () => {
 // COMPILE QUERY - VALID CASES
 // ============================================
 
-test('compileQuery valid single query', () => {
-  compileQuery([{ name: 'John' }]);
+test('compileDatadogQuery valid single query', () => {
+  compileDatadogQuery([{ name: 'John' }]);
 });
 
-test('compileQuery valid query chain with AND', () => {
-  compileQuery([{ name: 'John' }, 'AND', { age: 30 }]);
+test('compileDatadogQuery valid query chain with AND', () => {
+  compileDatadogQuery([{ name: 'John' }, 'AND', { age: 30 }]);
 });
 
-test('compileQuery valid query chain with OR', () => {
-  compileQuery([{ name: 'John' }, 'OR', { age: 30 }]);
+test('compileDatadogQuery valid query chain with OR', () => {
+  compileDatadogQuery([{ name: 'John' }, 'OR', { age: 30 }]);
 });
 
-test('compileQuery valid longer query chain', () => {
-  compileQuery([{ name: 'John' }, 'AND', { age: 30 }, 'OR', { status: true }]);
+test('compileDatadogQuery valid longer query chain', () => {
+  compileDatadogQuery([
+    { name: 'John' },
+    'AND',
+    { age: 30 },
+    'OR',
+    { status: true },
+  ]);
 });
 
-test('compileQuery valid nested query', () => {
-  compileQuery([
+test('compileDatadogQuery valid nested query', () => {
+  compileDatadogQuery([
     [{ name: 'John' }, 'OR', { name: 'Jane' }],
     'AND',
     { age: 30 },
   ]);
 });
 
-test('compileQuery valid deeply nested query', () => {
-  compileQuery([
+test('compileDatadogQuery valid deeply nested query', () => {
+  compileDatadogQuery([
     { status: 'active' },
     'AND',
     [{ name: 'John' }, 'OR', [{ age: 30 }, 'AND', { role: 'admin' }]],
   ]);
 });
 
-test('compileQuery valid complex nested structure', () => {
-  compileQuery([
+test('compileDatadogQuery valid complex nested structure', () => {
+  compileDatadogQuery([
     [{ country: 'USA' }, 'OR', { country: 'Canada' }],
     'AND',
     [{ age: 25 }, 'OR', { experience: 5 }],
@@ -261,20 +267,20 @@ test('compileQuery valid complex nested structure', () => {
   ]);
 });
 
-test('compileQuery valid single nested query at root', () => {
-  compileQuery([[{ name: 'John' }, 'AND', { age: 30 }]]);
+test('compileDatadogQuery valid single nested query at root', () => {
+  compileDatadogQuery([[{ name: 'John' }, 'AND', { age: 30 }]]);
 });
 
-test('compileQuery valid query chain with AND NOT', () => {
-  compileQuery([{ name: 'John' }, 'AND NOT', { banned: true }]);
+test('compileDatadogQuery valid query chain with AND NOT', () => {
+  compileDatadogQuery([{ name: 'John' }, 'AND NOT', { banned: true }]);
 });
 
-test('compileQuery valid query chain with OR NOT', () => {
-  compileQuery([{ name: 'John' }, 'OR NOT', { suspended: true }]);
+test('compileDatadogQuery valid query chain with OR NOT', () => {
+  compileDatadogQuery([{ name: 'John' }, 'OR NOT', { suspended: true }]);
 });
 
-test('compileQuery valid chain mixing all operators', () => {
-  compileQuery([
+test('compileDatadogQuery valid chain mixing all operators', () => {
+  compileDatadogQuery([
     { name: 'John' },
     'AND',
     { active: true },
@@ -287,8 +293,8 @@ test('compileQuery valid chain mixing all operators', () => {
   ]);
 });
 
-test('compileQuery valid nested query with NOT operators', () => {
-  compileQuery([
+test('compileDatadogQuery valid nested query with NOT operators', () => {
+  compileDatadogQuery([
     [{ country: 'USA' }, 'OR NOT', { banned: true }],
     'AND NOT',
     { suspended: true },
@@ -299,94 +305,98 @@ test('compileQuery valid nested query with NOT operators', () => {
 // COMPILE QUERY - INVALID CASES
 // ============================================
 
-test('compileQuery empty query should error', () => {
+test('compileDatadogQuery empty query should error', () => {
   // @ts-expect-error empty query is invalid
-  compileQuery([]);
+  compileDatadogQuery([]);
 });
 
-test('compileQuery empty nested query should error', () => {
+test('compileDatadogQuery empty nested query should error', () => {
   // @ts-expect-error empty nested array is invalid
-  compileQuery([[], 'AND', { age: 30 }]);
+  compileDatadogQuery([[], 'AND', { age: 30 }]);
 });
 
-test('compileQuery wrong operator should error', () => {
+test('compileDatadogQuery wrong operator should error', () => {
   // @ts-expect-error "NAND" is not a valid operator
-  compileQuery([{ name: 'John' }, 'NAND', { age: 30 }]);
+  compileDatadogQuery([{ name: 'John' }, 'NAND', { age: 30 }]);
 });
 
-test('compileQuery lowercase operator should error', () => {
+test('compileDatadogQuery lowercase operator should error', () => {
   // @ts-expect-error "and" is not a valid operator (must be uppercase)
-  compileQuery([{ name: 'John' }, 'and', { age: 30 }]);
+  compileDatadogQuery([{ name: 'John' }, 'and', { age: 30 }]);
 });
 
-test('compileQuery sequential queries should error', () => {
+test('compileDatadogQuery sequential queries should error', () => {
   // @ts-expect-error two queries without operator
-  compileQuery([{ name: 'John' }, { age: 30 }]);
+  compileDatadogQuery([{ name: 'John' }, { age: 30 }]);
 });
 
-test('compileQuery sequential operators should error', () => {
+test('compileDatadogQuery sequential operators should error', () => {
   // @ts-expect-error two operators in a row
-  compileQuery([{ name: 'John' }, 'AND', 'OR', { age: 30 }]);
+  compileDatadogQuery([{ name: 'John' }, 'AND', 'OR', { age: 30 }]);
 });
 
-test('compileQuery ends with operator should error', () => {
+test('compileDatadogQuery ends with operator should error', () => {
   // @ts-expect-error cannot end with operator
-  compileQuery([{ name: 'John' }, 'AND']);
+  compileDatadogQuery([{ name: 'John' }, 'AND']);
 });
 
-test('compileQuery starts with operator should error', () => {
+test('compileDatadogQuery starts with operator should error', () => {
   // @ts-expect-error cannot start with operator
-  compileQuery(['AND', { name: 'John' }]);
+  compileDatadogQuery(['AND', { name: 'John' }]);
 });
 
 // ============================================
 // COMPILE QUERY - NESTED ERROR CASES
 // ============================================
 
-test('compileQuery nested query ends with operator should error', () => {
+test('compileDatadogQuery nested query ends with operator should error', () => {
   // @ts-expect-error nested query cannot end with operator
-  compileQuery([[{ name: 'John' }, 'AND'], 'OR', { age: 30 }]);
+  compileDatadogQuery([[{ name: 'John' }, 'AND'], 'OR', { age: 30 }]);
 });
 
-test('compileQuery nested query starts with operator should error', () => {
+test('compileDatadogQuery nested query starts with operator should error', () => {
   // @ts-expect-error nested query cannot start with operator
-  compileQuery([['AND', { name: 'John' }], 'OR', { age: 30 }]);
+  compileDatadogQuery([['AND', { name: 'John' }], 'OR', { age: 30 }]);
 });
 
-test('compileQuery nested sequential queries should error', () => {
+test('compileDatadogQuery nested sequential queries should error', () => {
   // @ts-expect-error nested sequential queries without operator
-  compileQuery([[{ name: 'John' }, { name: 'Jane' }], 'AND', { age: 30 }]);
+  compileDatadogQuery([
+    [{ name: 'John' }, { name: 'Jane' }],
+    'AND',
+    { age: 30 },
+  ]);
 });
 
-test('compileQuery deeply nested invalid query should error', () => {
+test('compileDatadogQuery deeply nested invalid query should error', () => {
   // @ts-expect-error invalid at depth 2 - ends with operator
-  compileQuery([
+  compileDatadogQuery([
     { status: 'active' },
     'AND',
     [{ name: 'John' }, 'OR', [{ age: 30 }, 'AND']],
   ]);
 });
 
-test('compileQuery nested empty array should error', () => {
+test('compileDatadogQuery nested empty array should error', () => {
   // @ts-expect-error nested empty array is invalid
-  compileQuery([{ name: 'John' }, 'AND', []]);
+  compileDatadogQuery([{ name: 'John' }, 'AND', []]);
 });
 
 // ============================================
 // COMPILE QUERY - ERROR MESSAGE CONTENT TESTS
 // ============================================
 
-test('compileQuery empty query returns correct error message', () => {
-  type Result = Parameters<typeof compileQuery<readonly []>>[0];
+test('compileDatadogQuery empty query returns correct error message', () => {
+  type Result = Parameters<typeof compileDatadogQuery<readonly []>>[0];
   expectTypeOf<Result>().toEqualTypeOf<
     readonly [] &
       'ERROR: Query cannot be empty. Expected: [Query] or [Query, Operator, Query, ...]'
   >();
 });
 
-test('compileQuery starting with operator returns correct error message', () => {
+test('compileDatadogQuery starting with operator returns correct error message', () => {
   type Result = Parameters<
-    typeof compileQuery<readonly ['AND', { name: string }]>
+    typeof compileDatadogQuery<readonly ['AND', { name: string }]>
   >[0];
   expectTypeOf<Result>().toEqualTypeOf<
     readonly ['AND', { name: string }] &
@@ -394,9 +404,9 @@ test('compileQuery starting with operator returns correct error message', () => 
   >();
 });
 
-test('compileQuery ending with operator returns correct error message', () => {
+test('compileDatadogQuery ending with operator returns correct error message', () => {
   type Result = Parameters<
-    typeof compileQuery<readonly [{ name: string }, 'AND']>
+    typeof compileDatadogQuery<readonly [{ name: string }, 'AND']>
   >[0];
   expectTypeOf<Result>().toEqualTypeOf<
     readonly [{ name: string }, 'AND'] &
@@ -404,9 +414,11 @@ test('compileQuery ending with operator returns correct error message', () => {
   >();
 });
 
-test('compileQuery invalid operator returns correct error message', () => {
+test('compileDatadogQuery invalid operator returns correct error message', () => {
   type Result = Parameters<
-    typeof compileQuery<readonly [{ name: string }, 'NAND', { age: number }]>
+    typeof compileDatadogQuery<
+      readonly [{ name: string }, 'NAND', { age: number }]
+    >
   >[0];
   expectTypeOf<Result>().toEqualTypeOf<
     readonly [{ name: string }, 'NAND', { age: number }] &

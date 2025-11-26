@@ -1,5 +1,5 @@
 import { test, expect, describe } from 'vitest';
-import { query, queryBuilder, compileQuery } from './index';
+import { query, queryBuilder, compileDatadogQuery } from './index';
 
 describe('query', () => {
   describe('single query', () => {
@@ -240,93 +240,93 @@ describe('query', () => {
   });
 });
 
-describe('compileQuery', () => {
+describe('compileDatadogQuery', () => {
   describe('BaseQueryType (single object)', () => {
     test('compiles string value with quotes', () => {
-      expect(compileQuery({ name: 'John' })).toBe('name:"John"');
+      expect(compileDatadogQuery({ name: 'John' })).toBe('name:"John"');
     });
 
     test('compiles number value without quotes', () => {
-      expect(compileQuery({ age: 30 })).toBe('age:30');
+      expect(compileDatadogQuery({ age: 30 })).toBe('age:30');
     });
 
     test('compiles boolean value without quotes', () => {
-      expect(compileQuery({ active: true })).toBe('active:true');
+      expect(compileDatadogQuery({ active: true })).toBe('active:true');
     });
 
     test('compiles null value without quotes', () => {
-      expect(compileQuery({ status: null })).toBe('status:null');
+      expect(compileDatadogQuery({ status: null })).toBe('status:null');
     });
 
     test('compiles array value with OR and parentheses', () => {
-      expect(compileQuery({ status: ['active', 'pending'] })).toBe(
+      expect(compileDatadogQuery({ status: ['active', 'pending'] })).toBe(
         'status:("active" OR "pending")'
       );
     });
 
     test('compiles array with mixed types', () => {
-      expect(compileQuery({ values: [1, 'two', true] })).toBe(
+      expect(compileDatadogQuery({ values: [1, 'two', true] })).toBe(
         'values:(1 OR "two" OR true)'
       );
     });
 
     test('compiles multiple fields with explicit AND', () => {
-      expect(compileQuery({ name: 'John', age: 30 })).toBe(
+      expect(compileDatadogQuery({ name: 'John', age: 30 })).toBe(
         'name:"John" AND age:30'
       );
     });
 
     test('compiles empty object as empty string', () => {
-      expect(compileQuery({})).toBe('');
+      expect(compileDatadogQuery({})).toBe('');
     });
   });
 
   describe('QueryChain (array/tuple)', () => {
     test('wraps single-element chain in parentheses', () => {
-      expect(compileQuery([{ name: 'John' }])).toBe('(name:"John")');
+      expect(compileDatadogQuery([{ name: 'John' }])).toBe('(name:"John")');
     });
 
     test('compiles simple AND chain', () => {
-      expect(compileQuery([{ name: 'John' }, 'AND', { age: 30 }])).toBe(
+      expect(compileDatadogQuery([{ name: 'John' }, 'AND', { age: 30 }])).toBe(
         '(name:"John" AND age:30)'
       );
     });
 
     test('compiles simple OR chain', () => {
-      expect(compileQuery([{ name: 'John' }, 'OR', { name: 'Jane' }])).toBe(
-        '(name:"John" OR name:"Jane")'
-      );
+      expect(
+        compileDatadogQuery([{ name: 'John' }, 'OR', { name: 'Jane' }])
+      ).toBe('(name:"John" OR name:"Jane")');
     });
 
     test('compiles AND NOT operator', () => {
-      expect(compileQuery([{ a: 1 }, 'AND NOT', { b: 2 }])).toBe(
+      expect(compileDatadogQuery([{ a: 1 }, 'AND NOT', { b: 2 }])).toBe(
         '(a:1 AND NOT b:2)'
       );
     });
 
     test('compiles OR NOT operator', () => {
-      expect(compileQuery([{ a: 1 }, 'OR NOT', { b: 2 }])).toBe(
+      expect(compileDatadogQuery([{ a: 1 }, 'OR NOT', { b: 2 }])).toBe(
         '(a:1 OR NOT b:2)'
       );
     });
 
     test('compiles longer chain with mixed operators', () => {
-      expect(compileQuery([{ a: 1 }, 'AND', { b: 2 }, 'OR', { c: 3 }])).toBe(
-        '(a:1 AND b:2 OR c:3)'
-      );
+      expect(
+        compileDatadogQuery([{ a: 1 }, 'AND', { b: 2 }, 'OR', { c: 3 }])
+      ).toBe('(a:1 AND b:2 OR c:3)');
     });
   });
 
   describe('nested queries', () => {
     test('compiles nested QueryChain', () => {
-      expect(compileQuery([{ a: 1 }, 'AND', [{ b: 2 }, 'OR', { c: 3 }]])).toBe(
-        '(a:1 AND (b:2 OR c:3))'
-      );
+      expect(
+        compileDatadogQuery([{ a: 1 }, 'AND', [{ b: 2 }, 'OR', { c: 3 }]])
+      ).toBe('(a:1 AND (b:2 OR c:3))');
     });
 
     test('compiles deeply nested QueryChain', () => {
       expect(
-        compileQuery([
+        compileDatadogQuery([
           { status: 'active' },
           'AND',
           [{ name: 'John' }, 'OR', [{ age: 30 }, 'AND', { role: 'admin' }]],
@@ -338,7 +338,7 @@ describe('compileQuery', () => {
 
     test('compiles multiple nested groups', () => {
       expect(
-        compileQuery([
+        compileDatadogQuery([
           [{ country: 'USA' }, 'OR', { country: 'Canada' }],
           'AND',
           [{ age: 25 }, 'OR', { experience: 5 }],
@@ -352,12 +352,12 @@ describe('compileQuery', () => {
   describe('integration with query() and queryBuilder()', () => {
     test('compiles query() output', () => {
       const q = query([{ name: 'John' }, 'AND', { age: 30 }]);
-      expect(compileQuery(q)).toBe('(name:"John" AND age:30)');
+      expect(compileDatadogQuery(q)).toBe('(name:"John" AND age:30)');
     });
 
     test('compiles queryBuilder().build() output', () => {
       const q = queryBuilder({ name: 'John' }).and({ age: 30 }).build();
-      expect(compileQuery(q)).toBe('(name:"John" AND age:30)');
+      expect(compileDatadogQuery(q)).toBe('(name:"John" AND age:30)');
     });
 
     test('compiles complex queryBuilder chain', () => {
@@ -366,7 +366,7 @@ describe('compileQuery', () => {
         .andNot({ c: 3 })
         .or({ d: 4 })
         .build();
-      expect(compileQuery(q)).toBe('(a:1 AND b:2 AND NOT c:3 OR d:4)');
+      expect(compileDatadogQuery(q)).toBe('(a:1 AND b:2 AND NOT c:3 OR d:4)');
     });
   });
 });
