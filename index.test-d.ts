@@ -1,6 +1,6 @@
 import { test, expectTypeOf } from 'vitest'
 import { processQuery } from './index'
-import type { ValidatePattern, BaseQueryType, Query } from './index'
+import type { ValidatePattern, ValidatePatternWithError, BaseQueryType, Query } from './index'
 
 // ============================================
 // VALID CASES - Should compile without errors
@@ -62,6 +62,36 @@ test('valid complex nested structure', () => {
 test('valid single nested query at root', () => {
   processQuery([
     [{ name: "John" }, "AND", { age: 30 }]
+  ])
+})
+
+test('valid query chain with AND NOT', () => {
+  processQuery([{ name: "John" }, "AND NOT", { banned: true }])
+})
+
+test('valid query chain with OR NOT', () => {
+  processQuery([{ name: "John" }, "OR NOT", { suspended: true }])
+})
+
+test('valid chain mixing all operators', () => {
+  processQuery([
+    { name: "John" },
+    "AND",
+    { active: true },
+    "AND NOT",
+    { banned: true },
+    "OR",
+    { admin: true },
+    "OR NOT",
+    { guest: true }
+  ])
+})
+
+test('valid nested query with NOT operators', () => {
+  processQuery([
+    [{ country: "USA" }, "OR NOT", { banned: true }],
+    "AND NOT",
+    { suspended: true }
   ])
 })
 
@@ -184,4 +214,28 @@ test('BaseQueryType accepts arrays of primitives', () => {
 test('Query type accepts BaseQueryType', () => {
   const query: Query = { name: "John" }
   expectTypeOf(query).toExtend<Query>()
+})
+
+// ============================================
+// ERROR MESSAGE CONTENT TESTS
+// ============================================
+
+test('empty query returns correct error message', () => {
+  type Result = ValidatePatternWithError<readonly []>
+  expectTypeOf<Result>().toEqualTypeOf<"ERROR: Query cannot be empty. Expected: [Query] or [Query, Operator, Query, ...]">()
+})
+
+test('starting with operator returns correct error message', () => {
+  type Result = ValidatePatternWithError<readonly ["AND", { name: string }]>
+  expectTypeOf<Result>().toEqualTypeOf<"ERROR: Query cannot start with an Operator. It must start with a Query.">()
+})
+
+test('ending with operator returns correct error message', () => {
+  type Result = ValidatePatternWithError<readonly [{ name: string }, "AND"]>
+  expectTypeOf<Result>().toEqualTypeOf<"ERROR: Query cannot end with an Operator. Expected a Query after the Operator.">()
+})
+
+test('invalid operator returns correct error message', () => {
+  type Result = ValidatePatternWithError<readonly [{ name: string }, "NAND", { age: number }]>
+  expectTypeOf<Result>().toEqualTypeOf<"ERROR: After a Query, expected an Operator ('AND' | 'OR' | 'AND NOT' | 'OR NOT') but found something else.">()
 })
