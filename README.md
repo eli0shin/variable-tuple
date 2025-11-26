@@ -5,6 +5,7 @@ TypeScript implementation of variable-length tuples with consistent patterns usi
 ## Overview
 
 This project demonstrates a type-safe tuple pattern that alternates between `Query` and `Operator`:
+
 - Pattern: `[Query]` or `[Query, Operator, Query, Operator, Query, ...]`
 - `BaseQueryType`: `Record<string, string | null | boolean | number | Array<...>>`
 - `Query`: Either a `BaseQueryType` OR a nested `QueryChain` (recursive composition!)
@@ -22,6 +23,7 @@ The type system uses a DSL-style validation approach:
 2. **`ValidatePattern<T>`** - Returns `T` if valid, or the error message if invalid
 
 This approach:
+
 - Provides **clear, actionable error messages** instead of just `never`
 - Avoids infinite type instantiation depth by checking pattern structure recursively
 - Returns the original type `T` when valid instead of reconstructing it
@@ -32,12 +34,12 @@ This approach:
 Thanks to TypeScript 5.0's `const` type parameters, you can pass arrays inline without `as const`:
 
 ```typescript
-import { query } from "./index";
+import { query } from './index';
 
 // ✨ No 'as const' needed!
-query([{ name: "Alice" }]);
-query([{ name: "Bob" }, "AND", { age: 25 }]);
-query([{ name: "Charlie" }, "AND", { age: 35 }, "OR", { active: true }]);
+query([{ name: 'Alice' }]);
+query([{ name: 'Bob' }, 'AND', { age: 25 }]);
+query([{ name: 'Charlie' }, 'AND', { age: 35 }, 'OR', { active: true }]);
 ```
 
 The `const` type parameter automatically infers literal tuple types, making the API more ergonomic while maintaining full type safety.
@@ -49,33 +51,33 @@ The `const` type parameter automatically infers literal tuple types, making the 
 Any position expecting a `Query` can be a **nested `QueryChain`**, enabling complex compositions:
 
 ```typescript
-import { query } from "./index";
+import { query } from './index';
 
 // Simple nesting
 query([
-  [{ name: "John" }, "OR", { name: "Jane" }],  // Nested QueryChain
-  "AND",
-  { age: 30 }
+  [{ name: 'John' }, 'OR', { name: 'Jane' }], // Nested QueryChain
+  'AND',
+  { age: 30 },
 ]);
 
 // Deep nesting
 query([
-  { status: "active" },
-  "AND",
+  { status: 'active' },
+  'AND',
   [
-    { name: "John" },
-    "OR",
-    [{ age: 30 }, "AND", { role: "admin" }]  // Multiple levels
-  ]
+    { name: 'John' },
+    'OR',
+    [{ age: 30 }, 'AND', { role: 'admin' }], // Multiple levels
+  ],
 ]);
 
 // Complex composition
 query([
-  [{ country: "USA" }, "OR", { country: "Canada" }],
-  "AND",
-  [{ age: 25 }, "OR", { experience: 5 }],
-  "AND",
-  { active: true }
+  [{ country: 'USA' }, 'OR', { country: 'Canada' }],
+  'AND',
+  [{ age: 25 }, 'OR', { experience: 5 }],
+  'AND',
+  { active: true },
 ]);
 ```
 
@@ -108,23 +110,23 @@ The `ValidatePattern` type provides **descriptive error messages** as a DSL vali
 
 ```typescript
 // Wrong operator
-query([{ name: "John" }, "NAND", { age: 30 }]);
+query([{ name: 'John' }, 'NAND', { age: 30 }]);
 // ERROR: After a Query, expected an Operator ('AND' | 'OR') but found something else.
 
 // Sequential queries without operator
-query([{ name: "John" }, { age: 30 }]);
+query([{ name: 'John' }, { age: 30 }]);
 // ERROR: After a Query, expected an Operator ('AND' | 'OR') but found something else.
 
 // Sequential operators
-query([{ name: "John" }, "AND", "OR", { age: 30 }]);
+query([{ name: 'John' }, 'AND', 'OR', { age: 30 }]);
 // ERROR: After an Operator, expected a Query (BaseQueryType or nested QueryChain) but found something else.
 
 // Ending with operator
-query([{ name: "John" }, "AND"]);
+query([{ name: 'John' }, 'AND']);
 // ERROR: Query cannot end with an Operator. Expected a Query after the Operator.
 
 // Starting with operator
-query(["AND", { name: "John" }]);
+query(['AND', { name: 'John' }]);
 // ERROR: Query cannot start with an Operator. It must start with a Query.
 ```
 

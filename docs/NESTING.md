@@ -5,6 +5,7 @@ This document explains the recursive nesting feature that allows QueryChains to 
 ## Core Concept
 
 Any position in the pattern that expects a `Query` can contain either:
+
 1. **BaseQueryType** - A simple `Record<string, value>` object
 2. **QueryChain** - A nested, valid query pattern
 
@@ -14,7 +15,7 @@ This enables recursive composition of arbitrary depth.
 
 ```typescript
 type BaseQueryType = Record<string, QueryValue | QueryValue[]>;
-type QueryChain = ValidatePattern<[...]>;  
+type QueryChain = ValidatePattern<[...]>;
 type Query = BaseQueryType | QueryChain;  // Either a base object OR a nested chain
 
 // Pattern: [Query, Operator, Query, Operator, Query, ...]
@@ -26,9 +27,9 @@ type Query = BaseQueryType | QueryChain;  // Either a base object OR a nested ch
 
 ```typescript
 query([
-  [{ name: "John" }, "OR", { name: "Jane" }],  // Nested QueryChain
-  "AND",
-  { age: 30 }
+  [{ name: 'John' }, 'OR', { name: 'Jane' }], // Nested QueryChain
+  'AND',
+  { age: 30 },
 ]);
 ```
 
@@ -36,13 +37,13 @@ query([
 
 ```typescript
 query([
-  { status: "active" },
-  "AND",
+  { status: 'active' },
+  'AND',
   [
-    { name: "John" },
-    "OR",
-    [{ age: 30 }, "AND", { role: "admin" }]  // Multiple levels
-  ]
+    { name: 'John' },
+    'OR',
+    [{ age: 30 }, 'AND', { role: 'admin' }], // Multiple levels
+  ],
 ]);
 ```
 
@@ -50,11 +51,11 @@ query([
 
 ```typescript
 query([
-  [{ country: "USA" }, "OR", { country: "Canada" }],
-  "AND",
-  [{ age: 25 }, "OR", { experience: 5 }],
-  "AND",
-  { active: true }
+  [{ country: 'USA' }, 'OR', { country: 'Canada' }],
+  'AND',
+  [{ age: 25 }, 'OR', { experience: 5 }],
+  'AND',
+  { active: true },
 ]);
 ```
 
@@ -72,9 +73,9 @@ Invalid nested queries produce clear error messages:
 
 ```typescript
 query([
-  [{ name: "John" }, "AND"],  // ERROR: ends with operator
-  "OR",
-  { age: 30 }
+  [{ name: 'John' }, 'AND'], // ERROR: ends with operator
+  'OR',
+  { age: 30 },
 ]);
 // Error: "Query must start with a Query (BaseQueryType or nested QueryChain)"
 ```
@@ -87,25 +88,22 @@ Nested queries enable modeling complex logical expressions:
 
 ```typescript
 // (name = "John" OR name = "Jane") AND age = 30
-query([
-  [{ name: "John" }, "OR", { name: "Jane" }],
-  "AND",
-  { age: 30 }
-]);
+query([[{ name: 'John' }, 'OR', { name: 'Jane' }], 'AND', { age: 30 }]);
 
 // country IN (USA, Canada) AND (young OR experienced) AND active
 query([
-  [{ country: "USA" }, "OR", { country: "Canada" }],
-  "AND",
-  [{ age: 25 }, "OR", { experience: 5 }],
-  "AND",
-  { active: true }
+  [{ country: 'USA' }, 'OR', { country: 'Canada' }],
+  'AND',
+  [{ age: 25 }, 'OR', { experience: 5 }],
+  'AND',
+  { active: true },
 ]);
 ```
 
 ## Implementation Details
 
 The `IsValidQuery<T>` helper type checks if `T` is either:
+
 1. A `BaseQueryType` (returns `true`)
 2. A readonly array that validates as a QueryChain (returns `true`)
 3. Otherwise returns `false`
@@ -113,14 +111,13 @@ The `IsValidQuery<T>` helper type checks if `T` is either:
 This enables the recursive validation:
 
 ```typescript
-type IsValidQuery<T> = 
-  T extends BaseQueryType
-    ? true
-    : T extends readonly unknown[]
-      ? ValidatePatternWithError<T> extends "valid"
-        ? true
-        : false
-      : false;
+type IsValidQuery<T> = T extends BaseQueryType
+  ? true
+  : T extends readonly unknown[]
+    ? ValidatePatternWithError<T> extends 'valid'
+      ? true
+      : false
+    : false;
 ```
 
 The main validation then uses `IsValidQuery` at each Query position, allowing both base types and nested chains.
