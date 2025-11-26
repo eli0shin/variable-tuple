@@ -103,7 +103,9 @@ function compileBaseQuery(query: BaseQueryType): string {
 }
 
 // Compile a query to a Datadog query string
-export function compileQuery(query: Query | QueryChain): string {
+export function compileQuery(query: BaseQueryType): string
+export function compileQuery<const T extends readonly unknown[]>(query: T & ValidatePattern<T>): string
+export function compileQuery(query: unknown): string {
   // If it's an array (QueryChain), process recursively
   if (isQueryChain(query)) {
     const parts: string[] = []
@@ -113,7 +115,7 @@ export function compileQuery(query: Query | QueryChain): string {
         parts.push(element)
       } else if (isQueryChain(element)) {
         // Recursive: nested QueryChain
-        parts.push(compileQuery(element as unknown as QueryChain))
+        parts.push(compileQuery(element as readonly unknown[] as readonly [BaseQueryType]))
       } else {
         // BaseQueryType object
         parts.push(compileBaseQuery(element as BaseQueryType))
