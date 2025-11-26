@@ -1,5 +1,5 @@
 import { test, expectTypeOf } from 'vitest'
-import { processQuery } from './index'
+import { query } from './index'
 import type { ValidatePattern, ValidatePatternWithError, BaseQueryType, Query } from './index'
 
 // ============================================
@@ -8,19 +8,19 @@ import type { ValidatePattern, ValidatePatternWithError, BaseQueryType, Query } 
 
 test('valid single query', () => {
   // Just verifying this compiles - no assertion needed
-  processQuery([{ name: "John" }])
+  query([{ name: "John" }])
 })
 
 test('valid query chain with AND', () => {
-  processQuery([{ name: "John" }, "AND", { age: 30 }])
+  query([{ name: "John" }, "AND", { age: 30 }])
 })
 
 test('valid query chain with OR', () => {
-  processQuery([{ name: "John" }, "OR", { age: 30 }])
+  query([{ name: "John" }, "OR", { age: 30 }])
 })
 
 test('valid longer query chain', () => {
-  processQuery([
+  query([
     { name: "John" },
     "AND",
     { age: 30 },
@@ -30,7 +30,7 @@ test('valid longer query chain', () => {
 })
 
 test('valid nested query', () => {
-  processQuery([
+  query([
     [{ name: "John" }, "OR", { name: "Jane" }],
     "AND",
     { age: 30 }
@@ -38,7 +38,7 @@ test('valid nested query', () => {
 })
 
 test('valid deeply nested query', () => {
-  processQuery([
+  query([
     { status: "active" },
     "AND",
     [
@@ -50,7 +50,7 @@ test('valid deeply nested query', () => {
 })
 
 test('valid complex nested structure', () => {
-  processQuery([
+  query([
     [{ country: "USA" }, "OR", { country: "Canada" }],
     "AND",
     [{ age: 25 }, "OR", { experience: 5 }],
@@ -60,21 +60,21 @@ test('valid complex nested structure', () => {
 })
 
 test('valid single nested query at root', () => {
-  processQuery([
+  query([
     [{ name: "John" }, "AND", { age: 30 }]
   ])
 })
 
 test('valid query chain with AND NOT', () => {
-  processQuery([{ name: "John" }, "AND NOT", { banned: true }])
+  query([{ name: "John" }, "AND NOT", { banned: true }])
 })
 
 test('valid query chain with OR NOT', () => {
-  processQuery([{ name: "John" }, "OR NOT", { suspended: true }])
+  query([{ name: "John" }, "OR NOT", { suspended: true }])
 })
 
 test('valid chain mixing all operators', () => {
-  processQuery([
+  query([
     { name: "John" },
     "AND",
     { active: true },
@@ -88,7 +88,7 @@ test('valid chain mixing all operators', () => {
 })
 
 test('valid nested query with NOT operators', () => {
-  processQuery([
+  query([
     [{ country: "USA" }, "OR NOT", { banned: true }],
     "AND NOT",
     { suspended: true }
@@ -101,42 +101,42 @@ test('valid nested query with NOT operators', () => {
 
 test('empty query should error', () => {
   // @ts-expect-error empty query is invalid
-  processQuery([])
+  query([])
 })
 
 test('empty nested query should error', () => {
   // @ts-expect-error empty nested array is invalid
-  processQuery([[], "AND", { age: 30 }])
+  query([[], "AND", { age: 30 }])
 })
 
 test('wrong operator should error', () => {
   // @ts-expect-error "NAND" is not a valid operator
-  processQuery([{ name: "John" }, "NAND", { age: 30 }])
+  query([{ name: "John" }, "NAND", { age: 30 }])
 })
 
 test('lowercase operator should error', () => {
   // @ts-expect-error "and" is not a valid operator (must be uppercase)
-  processQuery([{ name: "John" }, "and", { age: 30 }])
+  query([{ name: "John" }, "and", { age: 30 }])
 })
 
 test('sequential queries should error', () => {
   // @ts-expect-error two queries without operator
-  processQuery([{ name: "John" }, { age: 30 }])
+  query([{ name: "John" }, { age: 30 }])
 })
 
 test('sequential operators should error', () => {
   // @ts-expect-error two operators in a row
-  processQuery([{ name: "John" }, "AND", "OR", { age: 30 }])
+  query([{ name: "John" }, "AND", "OR", { age: 30 }])
 })
 
 test('ends with operator should error', () => {
   // @ts-expect-error cannot end with operator
-  processQuery([{ name: "John" }, "AND"])
+  query([{ name: "John" }, "AND"])
 })
 
 test('starts with operator should error', () => {
   // @ts-expect-error cannot start with operator
-  processQuery(["AND", { name: "John" }])
+  query(["AND", { name: "John" }])
 })
 
 // ============================================
@@ -145,7 +145,7 @@ test('starts with operator should error', () => {
 
 test('nested query ends with operator should error', () => {
   // @ts-expect-error nested query cannot end with operator
-  processQuery([
+  query([
     [{ name: "John" }, "AND"],
     "OR",
     { age: 30 }
@@ -154,7 +154,7 @@ test('nested query ends with operator should error', () => {
 
 test('nested query starts with operator should error', () => {
   // @ts-expect-error nested query cannot start with operator
-  processQuery([
+  query([
     ["AND", { name: "John" }],
     "OR",
     { age: 30 }
@@ -163,7 +163,7 @@ test('nested query starts with operator should error', () => {
 
 test('nested sequential queries should error', () => {
   // @ts-expect-error nested sequential queries without operator
-  processQuery([
+  query([
     [{ name: "John" }, { name: "Jane" }],
     "AND",
     { age: 30 }
@@ -172,7 +172,7 @@ test('nested sequential queries should error', () => {
 
 test('deeply nested invalid query should error', () => {
   // @ts-expect-error invalid at depth 2 - ends with operator
-  processQuery([
+  query([
     { status: "active" },
     "AND",
     [
@@ -185,7 +185,7 @@ test('deeply nested invalid query should error', () => {
 
 test('nested empty array should error', () => {
   // @ts-expect-error nested empty array is invalid
-  processQuery([
+  query([
     { name: "John" },
     "AND",
     []

@@ -51,7 +51,7 @@ export type ValidatePattern<T extends readonly unknown[]> =
 
 // Function using const type parameters (TypeScript 5.0+)
 // No 'as const' needed when passing arrays inline!
-export function processQuery<const T extends readonly unknown[]>(
+export function query<const T extends readonly unknown[]>(
   query: T & ValidatePattern<T>
 ): T {
   return query;
@@ -66,7 +66,7 @@ type QueryBuilder<T extends readonly unknown[] = []> = {
   orNot: <Q extends Query>(query: Q) => QueryBuilder<readonly [...T, "OR NOT", Q]>;
 };
 
-export function createQuery<Q extends Query>(initialQuery: Q): QueryBuilder<readonly [Q]> {
+export function queryBuilder<Q extends Query>(initialQuery: Q): QueryBuilder<readonly [Q]> {
   const queries: unknown[] = [initialQuery];
   
   const builder: any = {

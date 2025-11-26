@@ -32,12 +32,12 @@ This approach:
 Thanks to TypeScript 5.0's `const` type parameters, you can pass arrays inline without `as const`:
 
 ```typescript
-import { processQuery } from "./index";
+import { query } from "./index";
 
 // ✨ No 'as const' needed!
-processQuery([{ name: "Alice" }]);
-processQuery([{ name: "Bob" }, "AND", { age: 25 }]);
-processQuery([{ name: "Charlie" }, "AND", { age: 35 }, "OR", { active: true }]);
+query([{ name: "Alice" }]);
+query([{ name: "Bob" }, "AND", { age: 25 }]);
+query([{ name: "Charlie" }, "AND", { age: 35 }, "OR", { active: true }]);
 ```
 
 The `const` type parameter automatically infers literal tuple types, making the API more ergonomic while maintaining full type safety.
@@ -49,17 +49,17 @@ The `const` type parameter automatically infers literal tuple types, making the 
 Any position expecting a `Query` can be a **nested `QueryChain`**, enabling complex compositions:
 
 ```typescript
-import { processQuery } from "./index";
+import { query } from "./index";
 
 // Simple nesting
-processQuery([
+query([
   [{ name: "John" }, "OR", { name: "Jane" }],  // Nested QueryChain
   "AND",
   { age: 30 }
 ]);
 
 // Deep nesting
-processQuery([
+query([
   { status: "active" },
   "AND",
   [
@@ -70,7 +70,7 @@ processQuery([
 ]);
 
 // Complex composition
-processQuery([
+query([
   [{ country: "USA" }, "OR", { country: "Canada" }],
   "AND",
   [{ age: 25 }, "OR", { experience: 5 }],
@@ -108,23 +108,23 @@ The `ValidatePattern` type provides **descriptive error messages** as a DSL vali
 
 ```typescript
 // Wrong operator
-processQuery([{ name: "John" }, "NAND", { age: 30 }]);
+query([{ name: "John" }, "NAND", { age: 30 }]);
 // ERROR: After a Query, expected an Operator ('AND' | 'OR') but found something else.
 
 // Sequential queries without operator
-processQuery([{ name: "John" }, { age: 30 }]);
+query([{ name: "John" }, { age: 30 }]);
 // ERROR: After a Query, expected an Operator ('AND' | 'OR') but found something else.
 
 // Sequential operators
-processQuery([{ name: "John" }, "AND", "OR", { age: 30 }]);
+query([{ name: "John" }, "AND", "OR", { age: 30 }]);
 // ERROR: After an Operator, expected a Query (BaseQueryType or nested QueryChain) but found something else.
 
 // Ending with operator
-processQuery([{ name: "John" }, "AND"]);
+query([{ name: "John" }, "AND"]);
 // ERROR: Query cannot end with an Operator. Expected a Query after the Operator.
 
 // Starting with operator
-processQuery(["AND", { name: "John" }]);
+query(["AND", { name: "John" }]);
 // ERROR: Query cannot start with an Operator. It must start with a Query.
 ```
 

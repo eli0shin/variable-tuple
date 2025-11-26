@@ -25,7 +25,7 @@ type Query = BaseQueryType | QueryChain;  // Either a base object OR a nested ch
 ### Simple Nesting
 
 ```typescript
-processQuery([
+query([
   [{ name: "John" }, "OR", { name: "Jane" }],  // Nested QueryChain
   "AND",
   { age: 30 }
@@ -35,7 +35,7 @@ processQuery([
 ### Deep Nesting
 
 ```typescript
-processQuery([
+query([
   { status: "active" },
   "AND",
   [
@@ -49,7 +49,7 @@ processQuery([
 ### Complex Composition
 
 ```typescript
-processQuery([
+query([
   [{ country: "USA" }, "OR", { country: "Canada" }],
   "AND",
   [{ age: 25 }, "OR", { experience: 5 }],
@@ -71,7 +71,7 @@ Nested queries are validated recursively. The type system checks:
 Invalid nested queries produce clear error messages:
 
 ```typescript
-processQuery([
+query([
   [{ name: "John" }, "AND"],  // ERROR: ends with operator
   "OR",
   { age: 30 }
@@ -87,14 +87,14 @@ Nested queries enable modeling complex logical expressions:
 
 ```typescript
 // (name = "John" OR name = "Jane") AND age = 30
-processQuery([
+query([
   [{ name: "John" }, "OR", { name: "Jane" }],
   "AND",
   { age: 30 }
 ]);
 
 // country IN (USA, Canada) AND (young OR experienced) AND active
-processQuery([
+query([
   [{ country: "USA" }, "OR", { country: "Canada" }],
   "AND",
   [{ age: 25 }, "OR", { experience: 5 }],
