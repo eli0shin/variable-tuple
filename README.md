@@ -1,137 +1,108 @@
 # variable-tuple
 
-TypeScript implementation of variable-length tuples with consistent patterns using recursive conditional types.
+Type-safe query builder with compile-time validation. Build complex queries with operators and get helpful error messages when the structure is invalid.
 
-## Overview
+## Why?
 
-This project demonstrates a type-safe tuple pattern that alternates between `Query` and `Operator`:
+Query strings are hard to work with:
 
-- Pattern: `[Query]` or `[Query, Operator, Query, Operator, Query, ...]`
-- `BaseQueryType`: `Record<string, string | null | boolean | number | Array<...>>`
-- `Query`: Either a `BaseQueryType` OR a nested `QueryChain` (recursive composition!)
-- `Operator`: `"AND" | "OR"` (string literal type)
-- **No hardcoded length limits** - uses recursive type validation with `infer` and mapped types
-- **Supports recursive nesting** - any `Query` position can contain a nested `QueryChain`
+- Long strings lack syntax highlighting and can't be formatted
+- Errors are invisible until runtime
+- Easy to put two operators next to each other or forget one
 
-## Implementation
-
-The type system uses a DSL-style validation approach:
-
-1. **`ValidatePatternWithError<T>`** - Recursively validates the pattern and returns:
-   - `"valid"` if the pattern is correct
-   - A descriptive error message string explaining what's wrong
-2. **`ValidatePattern<T>`** - Returns `T` if valid, or the error message if invalid
-
-This approach:
-
-- Provides **clear, actionable error messages** instead of just `never`
-- Avoids infinite type instantiation depth by checking pattern structure recursively
-- Returns the original type `T` when valid instead of reconstructing it
-- Acts as a **type-level DSL validator** with user-friendly feedback
-
-### No `as const` Required!
-
-Thanks to TypeScript 5.0's `const` type parameters, you can pass arrays inline without `as const`:
-
-```typescript
-import { query } from './index';
-
-// ✨ No 'as const' needed!
-query([{ name: 'Alice' }]);
-query([{ name: 'Bob' }, 'AND', { age: 25 }]);
-query([{ name: 'Charlie' }, 'AND', { age: 35 }, 'OR', { active: true }]);
-```
-
-The `const` type parameter automatically infers literal tuple types, making the API more ergonomic while maintaining full type safety.
-
-**Why `const` type parameters?** Without them (or `as const`), TypeScript widens array literals to union types like `(string | object)[]`. The `const` type parameter is the **only** way to prevent this widening at the call site. Alternatives like `infer`, `NoInfer`, or constraint tricks don't work because type inference happens before constraint checking. See `test-inference-patterns.ts` for detailed comparisons.
-
-### Recursive Nesting Support
-
-Any position expecting a `Query` can be a **nested `QueryChain`**, enabling complex compositions:
-
-```typescript
-import { query } from './index';
-
-// Simple nesting
-query([
-  [{ name: 'John' }, 'OR', { name: 'Jane' }], // Nested QueryChain
-  'AND',
-  { age: 30 },
-]);
-
-// Deep nesting
-query([
-  { status: 'active' },
-  'AND',
-  [
-    { name: 'John' },
-    'OR',
-    [{ age: 30 }, 'AND', { role: 'admin' }], // Multiple levels
-  ],
-]);
-
-// Complex composition
-query([
-  [{ country: 'USA' }, 'OR', { country: 'Canada' }],
-  'AND',
-  [{ age: 25 }, 'OR', { experience: 5 }],
-  'AND',
-  { active: true },
-]);
-```
-
-Nested queries are validated recursively - invalid nested structures produce clear error messages.
+This library lets you build queries as structured data with compile-time validation.
 
 ## Installation
 
 ```bash
-bun install
+bun add variable-tuple
+```
+
+## Quick Start
+
+```typescript
+import { query, compileDatadogQuery } from 'variable-tuple';
+
+// Build a query with compile-time validation
+const q = query([{ service: 'api' }, 'AND', { env: 'production' }]);
+
+// Compile to Datadog query string
+const str = compileDatadogQuery(q);
+// '(service:"api" AND env:"production")'
 ```
 
 ## Usage
 
-```bash
-# Run valid examples
-bun run index.ts
-
-# Run all tests (runtime + type tests)
-bun test
-
-# Run type tests only
-bun run test:types
-```
-
-## Type Safety Verification
-
-The `ValidatePattern` type provides **descriptive error messages** as a DSL validator:
-
-### Example Error Messages
+### Simple query
 
 ```typescript
-// Wrong operator
-query([{ name: 'John' }, 'NAND', { age: 30 }]);
-// ERROR: After a Query, expected an Operator ('AND' | 'OR') but found something else.
-
-// Sequential queries without operator
-query([{ name: 'John' }, { age: 30 }]);
-// ERROR: After a Query, expected an Operator ('AND' | 'OR') but found something else.
-
-// Sequential operators
-query([{ name: 'John' }, 'AND', 'OR', { age: 30 }]);
-// ERROR: After an Operator, expected a Query (BaseQueryType or nested QueryChain) but found something else.
-
-// Ending with operator
-query([{ name: 'John' }, 'AND']);
-// ERROR: Query cannot end with an Operator. Expected a Query after the Operator.
-
-// Starting with operator
-query(['AND', { name: 'John' }]);
-// ERROR: Query cannot start with an Operator. It must start with a Query.
+query([{ name: 'John' }]);
 ```
 
-See `index.test-d.ts` for all error test cases.
+### Query with operators
 
-## Project Info
+```typescript
+query([{ name: 'John' }, 'AND', { age: 30 }]);
+query([{ status: 'active' }, 'OR', { role: 'admin' }]);
+query([{ env: 'prod' }, 'AND NOT', { service: 'debug' }]);
+```
 
-This project was created using `bun init` in bun v1.3.2. [Bun](https://bun.com) is a fast all-in-one JavaScript runtime.
+### Nested queries
+
+```typescript
+query([[{ name: 'John' }, 'OR', { name: 'Jane' }], 'AND', { age: 30 }]);
+
+query([
+  [{ country: 'USA' }, 'OR', { country: 'Canada' }],
+  'AND',
+  [{ age: 25 }, 'OR', { experience: 5 }],
+]);
+```
+
+### Query builder
+
+```typescript
+import { queryBuilder } from 'variable-tuple';
+
+const q = queryBuilder({ name: 'John' })
+  .and({ age: 30 })
+  .or({ active: true })
+  .build();
+```
+
+### Compile to Datadog format
+
+```typescript
+import { compileDatadogQuery } from 'variable-tuple';
+
+compileDatadogQuery({ name: 'John', age: 30 });
+// 'name:"John" AND age:30'
+
+compileDatadogQuery([{ a: 1 }, 'AND', { b: 2 }]);
+// '(a:1 AND b:2)'
+
+compileDatadogQuery({ tags: ['error', 'warning'] });
+// 'tags:("error" OR "warning")'
+```
+
+## Query Syntax
+
+- **Operators**: `'AND' | 'OR' | 'AND NOT' | 'OR NOT'`
+- **Values**: `string | number | boolean | null | Array<string | number | boolean | null>`
+- **Pattern**: `[Query]` or `[Query, Operator, Query, ...]`
+- **Nesting**: Any query position accepts a nested query chain
+- **Arrays**: Compiled as `(value1 OR value2 OR ...)`
+
+## API
+
+### `query(input)`
+
+Creates a type-safe query. Returns the input unchanged but validates the structure at compile time.
+
+### `queryBuilder(initialQuery)`
+
+Fluent builder with `.and()`, `.or()`, `.andNot()`, `.orNot()` methods. Call `.build()` to get the query.
+
+### `compileDatadogQuery(query)`
+
+Compiles a query to Datadog query string format.

@@ -1,4 +1,3 @@
-// Define the base types
 export type Operator = 'AND' | 'OR' | 'AND NOT' | 'OR NOT';
 
 export type QueryValue = string | null | boolean | number;
@@ -7,14 +6,11 @@ export type BaseQueryType = Record<
   QueryValue | QueryValue[] | readonly QueryValue[]
 >;
 
-// Forward declaration for recursive type
 export type QueryChain<T extends readonly unknown[] = readonly unknown[]> =
   ValidatePattern<T>;
 
-// A Query can be either a BaseQueryType or a nested QueryChain
 export type Query = BaseQueryType | QueryChain;
 
-// Helper to check if something is a valid query (base type or valid nested chain)
 type IsValidQuery<T> = T extends BaseQueryType
   ? true
   : T extends readonly unknown[]
@@ -23,8 +19,6 @@ type IsValidQuery<T> = T extends BaseQueryType
       : false
     : false;
 
-// Helper to check if pattern is valid (returns "valid" or error message)
-// Now supports recursive nesting - any Query position can be a nested QueryChain
 export type ValidatePatternWithError<T extends readonly unknown[]> =
   T extends readonly []
     ? 'ERROR: Query cannot be empty. Expected: [Query] or [Query, Operator, Query, ...]'
@@ -48,19 +42,23 @@ export type ValidatePatternWithError<T extends readonly unknown[]> =
           : 'ERROR: Query must start with a Query (BaseQueryType or nested QueryChain).'
       : 'ERROR: Invalid query pattern.';
 
-// Validate pattern and return T if valid, error message if invalid
 export type ValidatePattern<T extends readonly unknown[]> =
   ValidatePatternWithError<T> extends 'valid' ? T : ValidatePatternWithError<T>;
 
-// Function using const type parameters (TypeScript 5.0+)
-// No 'as const' needed when passing arrays inline!
+/**
+ * Creates a type-safe query with compile-time validation.
+ *
+ * @example
+ * query([{ name: 'John' }])
+ * query([{ name: 'John' }, 'AND', { age: 30 }])
+ * query([[{ a: 1 }, 'OR', { b: 2 }], 'AND', { c: 3 }])
+ */
 export function query<const T extends readonly unknown[]>(
   query: T & ValidatePattern<T>
 ): T {
   return query;
 }
 
-// Builder pattern for type-safe construction (supports nesting)
 type QueryBuilder<T extends readonly unknown[] = []> = {
   build: () => ValidatePattern<T>;
   and: <Q extends Query>(query: Q) => QueryBuilder<readonly [...T, 'AND', Q]>;
@@ -73,7 +71,6 @@ type QueryBuilder<T extends readonly unknown[] = []> = {
   ) => QueryBuilder<readonly [...T, 'OR NOT', Q]>;
 };
 
-// Format a single QueryValue to string
 function formatValue(value: QueryValue): string {
   if (typeof value === 'string') {
     return `"${value}"`;
@@ -81,17 +78,14 @@ function formatValue(value: QueryValue): string {
   return String(value);
 }
 
-// Format an array of values with OR
 function formatArrayValue(values: readonly QueryValue[]): string {
   return `(${values.map(formatValue).join(' OR ')})`;
 }
 
-// Check if a value is a QueryChain (array/tuple)
 function isQueryChain(value: unknown): value is readonly unknown[] {
   return Array.isArray(value);
 }
 
-// Check if a value is an Operator
 function isOperator(value: unknown): value is Operator {
   return (
     value === 'AND' ||
@@ -101,7 +95,6 @@ function isOperator(value: unknown): value is Operator {
   );
 }
 
-// Compile a BaseQueryType object to string
 function compileBaseQuery(query: BaseQueryType): string {
   const entries = Object.entries(query);
   if (entries.length === 0) return '';
@@ -116,13 +109,21 @@ function compileBaseQuery(query: BaseQueryType): string {
     .join(' AND ');
 }
 
-// Compile a query to a Datadog query string
+/**
+ * Compiles a query to Datadog query string format.
+ *
+ * @example
+ * compileDatadogQuery({ name: 'John', age: 30 })
+ * // Returns: 'name:"John" AND age:30'
+ *
+ * compileDatadogQuery([{ a: 1 }, 'AND', { b: 2 }])
+ * // Returns: '(a:1 AND b:2)'
+ */
 export function compileDatadogQuery(query: BaseQueryType): string;
 export function compileDatadogQuery<const T extends readonly unknown[]>(
   query: T & ValidatePattern<T>
 ): string;
 export function compileDatadogQuery(query: unknown): string {
-  // If it's an array (QueryChain), process recursively
   if (isQueryChain(query)) {
     const parts: string[] = [];
 
@@ -130,14 +131,12 @@ export function compileDatadogQuery(query: unknown): string {
       if (isOperator(element)) {
         parts.push(element);
       } else if (isQueryChain(element)) {
-        // Recursive: nested QueryChain
         parts.push(
           compileDatadogQuery(
             element as readonly unknown[] as readonly [BaseQueryType]
           )
         );
       } else {
-        // BaseQueryType object
         parts.push(compileBaseQuery(element as BaseQueryType));
       }
     }
@@ -145,10 +144,18 @@ export function compileDatadogQuery(query: unknown): string {
     return `(${parts.join(' ')})`;
   }
 
-  // It's a BaseQueryType object
   return compileBaseQuery(query as BaseQueryType);
 }
 
+/**
+ * Fluent builder for constructing queries with method chaining.
+ *
+ * @example
+ * queryBuilder({ name: 'John' })
+ *   .and({ age: 30 })
+ *   .or({ active: true })
+ *   .build()
+ */
 export function queryBuilder<Q extends Query>(
   initialQuery: Q
 ): QueryBuilder<readonly [Q]> {
