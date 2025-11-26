@@ -66,6 +66,67 @@ type QueryBuilder<T extends readonly unknown[] = []> = {
   orNot: <Q extends Query>(query: Q) => QueryBuilder<readonly [...T, "OR NOT", Q]>;
 };
 
+// Format a single QueryValue to string
+function formatValue(value: QueryValue): string {
+  if (typeof value === 'string') {
+    return `"${value}"`
+  }
+  return String(value)
+}
+
+// Format an array of values with OR
+function formatArrayValue(values: readonly QueryValue[]): string {
+  return `(${values.map(formatValue).join(' OR ')})`
+}
+
+// Check if a value is a QueryChain (array/tuple)
+function isQueryChain(value: unknown): value is readonly unknown[] {
+  return Array.isArray(value)
+}
+
+// Check if a value is an Operator
+function isOperator(value: unknown): value is Operator {
+  return value === 'AND' || value === 'OR' || value === 'AND NOT' || value === 'OR NOT'
+}
+
+// Compile a BaseQueryType object to string
+function compileBaseQuery(query: BaseQueryType): string {
+  const entries = Object.entries(query)
+  if (entries.length === 0) return ''
+
+  return entries.map(([key, value]) => {
+    if (Array.isArray(value)) {
+      return `${key}:${formatArrayValue(value)}`
+    }
+    return `${key}:${formatValue(value as QueryValue)}`
+  }).join(' AND ')
+}
+
+// Compile a query to a Datadog query string
+export function compileQuery(query: Query | QueryChain): string {
+  // If it's an array (QueryChain), process recursively
+  if (isQueryChain(query)) {
+    const parts: string[] = []
+
+    for (const element of query) {
+      if (isOperator(element)) {
+        parts.push(element)
+      } else if (isQueryChain(element)) {
+        // Recursive: nested QueryChain
+        parts.push(compileQuery(element as unknown as QueryChain))
+      } else {
+        // BaseQueryType object
+        parts.push(compileBaseQuery(element as BaseQueryType))
+      }
+    }
+
+    return `(${parts.join(' ')})`
+  }
+
+  // It's a BaseQueryType object
+  return compileBaseQuery(query as BaseQueryType)
+}
+
 export function queryBuilder<Q extends Query>(initialQuery: Q): QueryBuilder<readonly [Q]> {
   const queries: unknown[] = [initialQuery];
   
