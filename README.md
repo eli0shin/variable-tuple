@@ -1,4 +1,4 @@
-# variable-tuple
+# barkql
 
 Type-safe query builder with compile-time validation. Build complex queries with operators and get helpful error messages when the structure is invalid.
 
@@ -15,13 +15,13 @@ This library lets you build queries as structured data with compile-time validat
 ## Installation
 
 ```bash
-bun add variable-tuple
+bun add barkql
 ```
 
 ## Quick Start
 
 ```typescript
-import { query, compileDatadogQuery } from 'variable-tuple';
+import { query, compileDatadogQuery } from 'barkql';
 
 // Build a query with compile-time validation
 const q = query([{ service: 'api' }, 'AND', { env: 'production' }]);
@@ -62,7 +62,7 @@ query([
 ### Query builder
 
 ```typescript
-import { queryBuilder } from 'variable-tuple';
+import { queryBuilder } from 'barkql';
 
 const q = queryBuilder({ name: 'John' })
   .and({ age: 30 })
@@ -73,7 +73,7 @@ const q = queryBuilder({ name: 'John' })
 ### Compile to Datadog format
 
 ```typescript
-import { compileDatadogQuery } from 'variable-tuple';
+import { compileDatadogQuery } from 'barkql';
 
 compileDatadogQuery({ name: 'John', age: 30 });
 // 'name:"John" AND age:30'
