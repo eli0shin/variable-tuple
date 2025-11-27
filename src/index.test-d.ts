@@ -1,5 +1,5 @@
 import { test, expectTypeOf } from 'vitest';
-import { query, compileDatadogQuery } from './index';
+import { query, compileDatadogQuery, queryBuilder } from './index';
 import type {
   ValidatePattern,
   ValidatePatternWithError,
@@ -424,4 +424,227 @@ test('compileDatadogQuery invalid operator returns correct error message', () =>
     readonly [{ name: string }, 'NAND', { age: number }] &
       "ERROR: After a Query, expected an Operator ('AND' | 'OR' | 'AND NOT' | 'OR NOT') but found something else."
   >();
+});
+
+// ============================================
+// QUERY BUILDER - VALID CASES
+// ============================================
+
+test('queryBuilder accepts BaseQueryType', () => {
+  queryBuilder({ name: 'John' });
+});
+
+test('queryBuilder accepts BaseQueryType with multiple fields', () => {
+  queryBuilder({ name: 'John', age: 30, active: true });
+});
+
+test('queryBuilder accepts result of query()', () => {
+  const q = query([{ name: 'John' }, 'AND', { age: 30 }]);
+  queryBuilder(q);
+});
+
+test('queryBuilder accepts complex nested query from query()', () => {
+  const q = query([
+    { status: 'active' },
+    'OR',
+    [{ role: 'admin' }, 'AND', { verified: true }],
+  ]);
+  queryBuilder(q);
+});
+
+test('queryBuilder.and() accepts BaseQueryType', () => {
+  queryBuilder({ name: 'John' }).and({ age: 30 });
+});
+
+test('queryBuilder.and() accepts result of query()', () => {
+  const nested = query([{ b: 2 }, 'OR', { c: 3 }]);
+  queryBuilder({ a: 1 }).and(nested);
+});
+
+test('queryBuilder.or() accepts BaseQueryType', () => {
+  queryBuilder({ name: 'John' }).or({ name: 'Jane' });
+});
+
+test('queryBuilder.or() accepts result of query()', () => {
+  const nested = query([{ b: 2 }, 'AND', { c: 3 }]);
+  queryBuilder({ a: 1 }).or(nested);
+});
+
+test('queryBuilder.andNot() accepts BaseQueryType', () => {
+  queryBuilder({ active: true }).andNot({ banned: true });
+});
+
+test('queryBuilder.andNot() accepts result of query()', () => {
+  const nested = query([{ banned: true }, 'OR', { suspended: true }]);
+  queryBuilder({ active: true }).andNot(nested);
+});
+
+test('queryBuilder.orNot() accepts BaseQueryType', () => {
+  queryBuilder({ name: 'John' }).orNot({ guest: true });
+});
+
+test('queryBuilder.orNot() accepts result of query()', () => {
+  const nested = query([{ guest: true }, 'AND', { anonymous: true }]);
+  queryBuilder({ name: 'John' }).orNot(nested);
+});
+
+test('queryBuilder chains multiple methods with mixed types', () => {
+  const nestedOr = query([{ role: 'admin' }, 'OR', { role: 'superuser' }]);
+  const nestedAnd = query([{ level: 5 }, 'AND', { verified: true }]);
+
+  queryBuilder({ active: true })
+    .and(nestedOr)
+    .or({ department: 'engineering' })
+    .andNot(nestedAnd)
+    .orNot({ banned: true });
+});
+
+test('queryBuilder starting with query() result chains correctly', () => {
+  const initial = query([{ a: 1 }, 'OR', { b: 2 }]);
+  const nested = query([{ c: 3 }, 'AND', { d: 4 }]);
+
+  queryBuilder(initial).and({ e: 5 }).or(nested).andNot({ f: 6 });
+});
+
+// ============================================
+// QUERY BUILDER - INVALID CASES
+// ============================================
+
+test('queryBuilder.and() rejects invalid operator string', () => {
+  // @ts-expect-error string is not a valid query
+  queryBuilder({ a: 1 }).and('AND');
+});
+
+test('queryBuilder.and() rejects number', () => {
+  // @ts-expect-error number is not a valid query
+  queryBuilder({ a: 1 }).and(42);
+});
+
+test('queryBuilder.and() rejects null', () => {
+  // @ts-expect-error null is not a valid query
+  queryBuilder({ a: 1 }).and(null);
+});
+
+test('queryBuilder.or() rejects invalid operator string', () => {
+  // @ts-expect-error string is not a valid query
+  queryBuilder({ a: 1 }).or('OR');
+});
+
+test('queryBuilder.andNot() rejects boolean', () => {
+  // @ts-expect-error boolean is not a valid query
+  queryBuilder({ a: 1 }).andNot(true);
+});
+
+test('queryBuilder.orNot() rejects undefined', () => {
+  // @ts-expect-error undefined is not a valid query
+  queryBuilder({ a: 1 }).orNot(undefined);
+});
+
+// ============================================
+// QUERY BUILDER - INVALID QUERY CHAIN CASES
+// These should error just like query() does
+// ============================================
+
+test('queryBuilder.and() rejects sequential queries without operator', () => {
+  // @ts-expect-error two queries without operator - same as query([{a:1}, {b:2}])
+  queryBuilder({ x: 1 }).and([{ a: 1 }, { b: 2 }]);
+});
+
+test('queryBuilder.or() rejects sequential queries without operator', () => {
+  // @ts-expect-error two queries without operator
+  queryBuilder({ x: 1 }).or([{ a: 1 }, { b: 2 }]);
+});
+
+test('queryBuilder.andNot() rejects sequential queries without operator', () => {
+  // @ts-expect-error two queries without operator
+  queryBuilder({ x: 1 }).andNot([{ a: 1 }, { b: 2 }]);
+});
+
+test('queryBuilder.orNot() rejects sequential queries without operator', () => {
+  // @ts-expect-error two queries without operator
+  queryBuilder({ x: 1 }).orNot([{ a: 1 }, { b: 2 }]);
+});
+
+test('queryBuilder.and() rejects empty array', () => {
+  // @ts-expect-error empty array is invalid
+  queryBuilder({ x: 1 }).and([]);
+});
+
+test('queryBuilder.and() rejects array ending with operator', () => {
+  // @ts-expect-error cannot end with operator
+  queryBuilder({ x: 1 }).and([{ a: 1 }, 'AND']);
+});
+
+test('queryBuilder.and() rejects array starting with operator', () => {
+  // @ts-expect-error cannot start with operator
+  queryBuilder({ x: 1 }).and(['AND', { a: 1 }]);
+});
+
+test('queryBuilder.and() rejects invalid operator in array', () => {
+  // @ts-expect-error "NAND" is not a valid operator
+  queryBuilder({ x: 1 }).and([{ a: 1 }, 'NAND', { b: 2 }]);
+});
+
+test('queryBuilder.and() rejects nested invalid query chain', () => {
+  // @ts-expect-error nested query ends with operator
+  queryBuilder({ x: 1 }).and([{ a: 1 }, 'OR', [{ b: 2 }, 'AND']]);
+});
+
+test('queryBuilder initial rejects invalid query chain', () => {
+  // @ts-expect-error sequential queries without operator
+  queryBuilder([{ a: 1 }, { b: 2 }]);
+});
+
+test('queryBuilder initial rejects empty array', () => {
+  // @ts-expect-error empty array is invalid
+  queryBuilder([]);
+});
+
+test('queryBuilder initial rejects array ending with operator', () => {
+  // @ts-expect-error cannot end with operator
+  queryBuilder([{ a: 1 }, 'AND']);
+});
+
+test('queryBuilder initial rejects array starting with operator', () => {
+  // @ts-expect-error cannot start with operator
+  queryBuilder(['AND', { a: 1 }]);
+});
+
+// ============================================
+// QUERY BUILDER - RETURN TYPE VALIDATION
+// ============================================
+
+test('queryBuilder.build() returns correct type for single BaseQueryType', () => {
+  const result = queryBuilder({ name: 'John' }).build();
+  // Result should be a tuple with the wrapped query
+  expectTypeOf(result).toMatchTypeOf<readonly [readonly [{ name: string }]]>();
+});
+
+test('queryBuilder.build() returns correct type for query chain', () => {
+  const q = query([{ a: 1 }, 'AND', { b: 2 }]);
+  const result = queryBuilder(q).build();
+  // Result should preserve the query chain type
+  expectTypeOf(result).toMatchTypeOf<
+    readonly [readonly [{ a: number }, 'AND', { b: number }]]
+  >();
+});
+
+test('queryBuilder with .and() returns correct type', () => {
+  const result = queryBuilder({ a: 1 }).and({ b: 2 }).build();
+  expectTypeOf(result).toMatchTypeOf<
+    readonly [readonly [{ a: number }], 'AND', readonly [{ b: number }]]
+  >();
+});
+
+test('queryBuilder output compiles with compileDatadogQuery', () => {
+  const q = queryBuilder({ name: 'John' }).and({ age: 30 }).build();
+  // This should compile without errors
+  compileDatadogQuery(q);
+});
+
+test('queryBuilder with query() input compiles with compileDatadogQuery', () => {
+  const initial = query([{ a: 1 }, 'OR', { b: 2 }]);
+  const result = queryBuilder(initial).and({ c: 3 }).build();
+  // This should compile without errors
+  compileDatadogQuery(result);
 });

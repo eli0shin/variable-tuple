@@ -11,6 +11,13 @@ export type QueryChain<T extends readonly unknown[] = readonly unknown[]> =
 
 export type Query = BaseQueryType | QueryChain;
 
+// Helper type that validates arrays while accepting BaseQueryType directly
+type ValidatedQueryInput<Q> = Q extends readonly unknown[]
+  ? Q & ValidatePattern<Q>
+  : Q extends BaseQueryType
+    ? Q
+    : never;
+
 type IsValidQuery<T> = T extends BaseQueryType
   ? true
   : T extends readonly unknown[]
@@ -61,14 +68,26 @@ export function query<const T extends readonly unknown[]>(
 
 type QueryBuilder<T extends readonly unknown[] = []> = {
   build: () => ValidatePattern<T>;
-  and: <Q extends Query>(query: Q) => QueryBuilder<readonly [...T, 'AND', Q]>;
-  or: <Q extends Query>(query: Q) => QueryBuilder<readonly [...T, 'OR', Q]>;
-  andNot: <Q extends Query>(
-    query: Q
-  ) => QueryBuilder<readonly [...T, 'AND NOT', Q]>;
-  orNot: <Q extends Query>(
-    query: Q
-  ) => QueryBuilder<readonly [...T, 'OR NOT', Q]>;
+  and: <Q extends BaseQueryType | readonly unknown[]>(
+    query: ValidatedQueryInput<Q>
+  ) => QueryBuilder<
+    readonly [...T, 'AND', Q extends readonly unknown[] ? Q : readonly [Q]]
+  >;
+  or: <Q extends BaseQueryType | readonly unknown[]>(
+    query: ValidatedQueryInput<Q>
+  ) => QueryBuilder<
+    readonly [...T, 'OR', Q extends readonly unknown[] ? Q : readonly [Q]]
+  >;
+  andNot: <Q extends BaseQueryType | readonly unknown[]>(
+    query: ValidatedQueryInput<Q>
+  ) => QueryBuilder<
+    readonly [...T, 'AND NOT', Q extends readonly unknown[] ? Q : readonly [Q]]
+  >;
+  orNot: <Q extends BaseQueryType | readonly unknown[]>(
+    query: ValidatedQueryInput<Q>
+  ) => QueryBuilder<
+    readonly [...T, 'OR NOT', Q extends readonly unknown[] ? Q : readonly [Q]]
+  >;
 };
 
 function formatValue(value: QueryValue): string {
@@ -155,28 +174,43 @@ export function compileDatadogQuery(query: unknown): string {
  *   .and({ age: 30 })
  *   .or({ active: true })
  *   .build()
+ *
+ * @example
+ * queryBuilder([{ a: 1 }, 'OR', { b: 2 }] as const)
+ *   .and({ c: 3 })
+ *   .build()
  */
-export function queryBuilder<Q extends Query>(
+export function queryBuilder<Q extends BaseQueryType>(
   initialQuery: Q
-): QueryBuilder<readonly [Q]> {
-  const queries: unknown[] = [initialQuery];
+): QueryBuilder<readonly [readonly [Q]]>;
+export function queryBuilder<const T extends readonly unknown[]>(
+  initialQuery: T & ValidatePattern<T>
+): QueryBuilder<readonly [T]>;
+export function queryBuilder(
+  initialQuery: BaseQueryType | readonly unknown[]
+): any {
+  const wrapIfNeeded = (
+    q: BaseQueryType | readonly unknown[]
+  ): readonly unknown[] => (Array.isArray(q) ? q : [q]);
 
-  const builder: any = {
+  const queries: unknown[] = [wrapIfNeeded(initialQuery)];
+
+  const builder = {
     build: () => [...queries],
-    and: (query: Query) => {
-      queries.push('AND', query);
+    and: (query: BaseQueryType | readonly unknown[]) => {
+      queries.push('AND', wrapIfNeeded(query));
       return builder;
     },
-    or: (query: Query) => {
-      queries.push('OR', query);
+    or: (query: BaseQueryType | readonly unknown[]) => {
+      queries.push('OR', wrapIfNeeded(query));
       return builder;
     },
-    andNot: (query: Query) => {
-      queries.push('AND NOT', query);
+    andNot: (query: BaseQueryType | readonly unknown[]) => {
+      queries.push('AND NOT', wrapIfNeeded(query));
       return builder;
     },
-    orNot: (query: Query) => {
-      queries.push('OR NOT', query);
+    orNot: (query: BaseQueryType | readonly unknown[]) => {
+      queries.push('OR NOT', wrapIfNeeded(query));
       return builder;
     },
   };

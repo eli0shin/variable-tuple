@@ -185,36 +185,36 @@ describe('query', () => {
   });
 
   describe('queryBuilder builder', () => {
-    test('builds single query', () => {
+    test('builds single query (wrapped in array)', () => {
       expect(queryBuilder({ name: 'John' }).build()).toEqual([
-        { name: 'John' },
+        [{ name: 'John' }],
       ]);
     });
 
     test('builds query with and()', () => {
       expect(queryBuilder({ name: 'John' }).and({ age: 30 }).build()).toEqual([
-        { name: 'John' },
+        [{ name: 'John' }],
         'AND',
-        { age: 30 },
+        [{ age: 30 }],
       ]);
     });
 
     test('builds query with or()', () => {
       expect(
         queryBuilder({ name: 'John' }).or({ name: 'Jane' }).build()
-      ).toEqual([{ name: 'John' }, 'OR', { name: 'Jane' }]);
+      ).toEqual([[{ name: 'John' }], 'OR', [{ name: 'Jane' }]]);
     });
 
     test('builds query with andNot()', () => {
       expect(
         queryBuilder({ active: true }).andNot({ banned: true }).build()
-      ).toEqual([{ active: true }, 'AND NOT', { banned: true }]);
+      ).toEqual([[{ active: true }], 'AND NOT', [{ banned: true }]]);
     });
 
     test('builds query with orNot()', () => {
       expect(
         queryBuilder({ name: 'John' }).orNot({ suspended: true }).build()
-      ).toEqual([{ name: 'John' }, 'OR NOT', { suspended: true }]);
+      ).toEqual([[{ name: 'John' }], 'OR NOT', [{ suspended: true }]]);
     });
 
     test('chains multiple operators', () => {
@@ -226,15 +226,15 @@ describe('query', () => {
           .orNot({ e: 5 })
           .build()
       ).toEqual([
-        { a: 1 },
+        [{ a: 1 }],
         'AND',
-        { b: 2 },
+        [{ b: 2 }],
         'OR',
-        { c: 3 },
+        [{ c: 3 }],
         'AND NOT',
-        { d: 4 },
+        [{ d: 4 }],
         'OR NOT',
-        { e: 5 },
+        [{ e: 5 }],
       ]);
     });
   });
@@ -355,9 +355,9 @@ describe('compileDatadogQuery', () => {
       expect(compileDatadogQuery(q)).toBe('(name:"John" AND age:30)');
     });
 
-    test('compiles queryBuilder().build() output', () => {
+    test('compiles queryBuilder().build() output (with wrapping)', () => {
       const q = queryBuilder({ name: 'John' }).and({ age: 30 }).build();
-      expect(compileDatadogQuery(q)).toBe('(name:"John" AND age:30)');
+      expect(compileDatadogQuery(q)).toBe('((name:"John") AND (age:30))');
     });
 
     test('compiles complex queryBuilder chain', () => {
@@ -366,7 +366,29 @@ describe('compileDatadogQuery', () => {
         .andNot({ c: 3 })
         .or({ d: 4 })
         .build();
-      expect(compileDatadogQuery(q)).toBe('(a:1 AND b:2 AND NOT c:3 OR d:4)');
+      expect(compileDatadogQuery(q)).toBe(
+        '((a:1) AND (b:2) AND NOT (c:3) OR (d:4))'
+      );
+    });
+
+    test('queryBuilder accepts result of query() with complex nested query', () => {
+      const complexQuery = query([
+        { status: 'active' },
+        'OR',
+        [{ role: 'admin' }, 'AND', { verified: true }],
+      ]);
+
+      const result = queryBuilder(complexQuery)
+        .and({ department: 'engineering' })
+        .or({ department: 'product' })
+        .andNot({ banned: true })
+        .build();
+
+      const compiled = compileDatadogQuery(result);
+
+      expect(compiled).toBe(
+        '((status:"active" OR (role:"admin" AND verified:true)) AND (department:"engineering") OR (department:"product") AND NOT (banned:true))'
+      );
     });
   });
 });
