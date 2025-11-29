@@ -1,8 +1,45 @@
 {
   "name": "barkql",
-  "module": "src/index.ts",
+  "version": "0.1.0",
+  "description": "Type-safe query builder for Datadog metrics",
+  "license": "MIT",
+  "author": "eli0shin",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eli0shin/barkql.git"
+  },
+  "homepage": "https://github.com/eli0shin/barkql#readme",
+  "bugs": {
+    "url": "https://github.com/eli0shin/barkql/issues"
+  },
+  "keywords": [
+    "datadog",
+    "query",
+    "metrics",
+    "typescript",
+    "type-safe"
+  ],
   "type": "module",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
   "scripts": {
+    "build": "bun run build:esm && bun run build:cjs && bun run build:types",
+    "build:esm": "bun build src/index.ts --outdir dist --format esm --target node",
+    "build:cjs": "bun build src/index.ts --outfile dist/index.cjs --format cjs --target node",
+    "build:types": "tsc --project tsconfig.build.json && cp dist/index.d.ts dist/index.d.cts",
     "test": "vitest run",
     "test:types": "vitest --typecheck",
     "type:check": "tsc --noEmit",
@@ -11,6 +48,8 @@
     "prepare": "husky"
   },
   "devDependencies": {
+    "@changesets/changelog-github": "^0.5.2",
+    "@changesets/cli": "^2.29.7",
     "@types/bun": "latest",
     "husky": "^9.1.7",
     "lint-staged": "^16.2.7",

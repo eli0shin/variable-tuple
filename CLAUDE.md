@@ -36,3 +36,5 @@ test("hello world", () => {
 ```
 
 For more information, read the Bun API docs in `node_modules/bun-types/docs/**.md`.
+
+When creating a pull request, use `/changeset` to generate a changeset for the changes.
