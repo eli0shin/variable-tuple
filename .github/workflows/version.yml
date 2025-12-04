@@ -34,13 +34,7 @@ jobs:
         uses: changesets/action@v1
         with:
           version: bunx changeset version
-          publish: |
-            CURRENT_VERSION=$(node -p "require('./package.json').version")
-            if npm view barkql@$CURRENT_VERSION version 2>/dev/null; then
-              echo "Version $CURRENT_VERSION already published, skipping"
-            else
-              npm publish
-            fi
+          publish: bash scripts/release.sh
           title: 'chore: version packages'
           createGithubReleases: true
         env:
